@@ -419,6 +419,7 @@ static hid_t get_hdf5type_image_attribute_string(void) {
     hid_t datatype = H5Tcopy(H5T_C_S1);
     herr_t h5status = H5Tset_size(datatype, H5T_VARIABLE);
     if (h5status < 0) {
+        H5Ewalk2(H5E_DEFAULT, H5E_WALK_UPWARD, walk_hdf5_errors, NULL);
         ISMRMRD_PUSH_ERR(ISMRMRD_FILEERROR, "Failed get image attribute string data type");
     }
     return datatype;
@@ -738,6 +739,8 @@ static int get_array_properties(const ISMRMRD_Dataset *dset, const char *path,
         dims[n] = hdfdims[rank-n-1];
     }
 
+    free(hdfdims);
+
     /* clean up */
     h5status = H5Tclose(hdf5type);
     if (h5status < 0) {
@@ -858,7 +861,7 @@ int ismrmrd_init_dataset(ISMRMRD_Dataset *dset, const char *filename,
 
     dset->filename = (char *) malloc(strlen(filename) + 1);
     if (dset->filename == NULL) {
-        return ISMRMRD_PUSH_ERR(ISMRMRD_MEMORYERROR, "Failed to malloc dataset groupname");
+        return ISMRMRD_PUSH_ERR(ISMRMRD_MEMORYERROR, "Failed to malloc dataset filename");
     }
     strcpy(dset->filename, filename);
 
@@ -889,9 +892,16 @@ int ismrmrd_open_dataset(ISMRMRD_Dataset *dset, const bool create_if_needed) {
         dset->fileid = fileid;
     }
     else if (create_if_needed == false) {
-        H5Ewalk2(H5E_DEFAULT, H5E_WALK_UPWARD, walk_hdf5_errors, NULL);
-        /* Some sort of error opening the file - Maybe it doesn't exist? */
-        return ISMRMRD_PUSH_ERR(ISMRMRD_FILEERROR, "Failed to open file.");
+        /*Try opening the file as read-only*/
+        fileid = H5Fopen(dset->filename, H5F_ACC_RDONLY, H5P_DEFAULT);
+        if (fileid > 0) {
+            dset->fileid = fileid;
+        }
+        else{
+            H5Ewalk2(H5E_DEFAULT, H5E_WALK_UPWARD, walk_hdf5_errors, NULL);
+            /* Some sort of error opening the file - Maybe it doesn't exist? */
+            return ISMRMRD_PUSH_ERR(ISMRMRD_FILEERROR, "Failed to open file.");
+        }
     }
     else {
         /* Try creating a new file using the default properties. */
@@ -1027,24 +1037,14 @@ char * ismrmrd_read_header(const ISMRMRD_Dataset *dset) {
         goto cleanup_path;
     }
 
-    void *buff[1] = { NULL };
     dataset = H5Dopen2(dset->fileid, path, H5P_DEFAULT);
     datatype = get_hdf5type_xmlheader();
     /* Read it into a 1D buffer*/
-    h5status = H5Dread(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, buff);
-    if (h5status < 0 || buff[0] == NULL) {
+    h5status = H5Dread(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &xmlstring);
+    if (h5status < 0 || xmlstring == NULL) {
         H5Ewalk2(H5E_DEFAULT, H5E_WALK_UPWARD, walk_hdf5_errors, NULL);
         ISMRMRD_PUSH_ERR(ISMRMRD_FILEERROR, "Failed to read header.");
         goto cleanup_path;
-    }
-
-    /* Unpack */
-    xmlstring = (char *) malloc(strlen(buff[0])+1);
-    if (NULL == xmlstring) {
-        ISMRMRD_PUSH_ERR(ISMRMRD_MEMORYERROR, "Failed to malloc xmlstring");
-        goto cleanup_path;
-    } else {
-        memcpy(xmlstring, buff[0], strlen(buff[0])+1);
     }
 
     /* Clean up */
@@ -1157,6 +1157,7 @@ int ismrmrd_read_acquisition(const ISMRMRD_Dataset *dset, uint32_t index, ISMRMR
     memcpy(acq->data, hdf5acq.data.p, ismrmrd_size_of_acquisition_data(acq));
 
     /* clean up */
+    free(path);
     free(hdf5acq.traj.p);
     free(hdf5acq.data.p);
 
@@ -1266,7 +1267,7 @@ int ismrmrd_read_image(const ISMRMRD_Dataset *dset, const char *varname,
 
     int status;
     hid_t datatype;
-    char *path, *headerpath, *attrpath, *datapath;
+    char *path, *headerpath, *attrpath, *datapath, *attr_string;
     uint32_t numims;
 
     if (dset==NULL) {
@@ -1305,12 +1306,16 @@ int ismrmrd_read_image(const ISMRMRD_Dataset *dset, const char *varname,
     /* Handle the attribute string */
     attrpath = append_to_path(dset, path, "attributes");
     datatype = get_hdf5type_image_attribute_string();
-    status = read_element(dset, attrpath, (void *) &im->attribute_string, datatype, index);
+    status = read_element(dset, attrpath, (void *) &attr_string, datatype, index);
     if (status != ISMRMRD_NOERROR) {
         return ISMRMRD_PUSH_ERR(ISMRMRD_FILEERROR, "Failed to read image attribute string.");
     }
     free(attrpath);
     H5Tclose(datatype);
+
+    /* copy the attribute string read from the file into the Image */
+    memcpy(im->attribute_string, attr_string, ismrmrd_size_of_image_attribute_string(im));
+    free(attr_string);
 
     /* Handle the data */
     datapath = append_to_path(dset, path, "data");
