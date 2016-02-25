@@ -99,6 +99,13 @@ EXPORTISMRMRD int ismrmrd_append_image(const ISMRMRD_Dataset *dset, const char *
                                        const ISMRMRD_Image *im);
 
 /**
+ *   Reads an image header stored with appendImage.
+ *   The index indicates which image header to read from the variable named varname.
+ */
+EXPORTISMRMRD int ismrmrd_read_image_header(const ISMRMRD_Dataset *dset, const char *varname,
+                                     const uint32_t index, ISMRMRD_ImageHeader *im_header);
+
+/**
  *   Reads an image stored with appendImage.
  *   The index indicates which image to read from the variable named varname.
  */

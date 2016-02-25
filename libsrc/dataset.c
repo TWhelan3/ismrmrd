@@ -1336,6 +1336,54 @@ int ismrmrd_read_image(const ISMRMRD_Dataset *dset, const char *varname,
 
     return ISMRMRD_NOERROR;
 }
+int ismrmrd_read_image_header(const ISMRMRD_Dataset *dset, const char *varname,
+        const uint32_t index, ISMRMRD_ImageHeader *im_header) {
+
+    int status;
+    hid_t datatype;
+    char *path, *headerpath;
+ 
+
+    if (dset==NULL) {
+        return ISMRMRD_PUSH_ERR(ISMRMRD_RUNTIMEERROR, "Dataset pointer should not be NULL.");
+    }
+    if (varname==NULL) {
+        return ISMRMRD_PUSH_ERR(ISMRMRD_RUNTIMEERROR, "Varname should not be NULL.");
+    }
+    if (im_header==NULL) {
+        return ISMRMRD_PUSH_ERR(ISMRMRD_RUNTIMEERROR, "Image header pointer should not be NULL.");
+    }
+    /*varname won't be the images*/
+    //numims = ismrmrd_get_number_of_images(dset, varname);
+
+   /* if (index > numims) {
+        return ISMRMRD_PUSH_ERR(ISMRMRD_RUNTIMEERROR, "Index requested exceeds number of images in the dataset.");
+    }*/
+
+    /* The group for this set of images */
+    /* /groupname/varname */
+    path = make_path(dset, varname);
+
+    /* Handle the header */
+    headerpath = append_to_path(dset, path, "header");
+    datatype = get_hdf5type_imageheader();
+    status = read_element(dset, headerpath, (void *) im_header, datatype, index);//Change &im->header to be the pointer to what you want to return
+    if (status != ISMRMRD_NOERROR) {
+        return ISMRMRD_PUSH_ERR(ISMRMRD_FILEERROR, "Failed to read image header.");
+    }
+    free(headerpath);
+  
+    //maybe there's something missing here?
+    /* Final cleanup */
+    status = H5Tclose(datatype);
+    if (status < 0) {
+        H5Ewalk2(H5E_DEFAULT, H5E_WALK_UPWARD, walk_hdf5_errors, NULL);
+        return ISMRMRD_PUSH_ERR(ISMRMRD_HDF5ERROR, "Failed to close datatype.");
+    }
+    free(path);
+
+    return ISMRMRD_NOERROR;
+}
 
 int ismrmrd_append_array(const ISMRMRD_Dataset *dset, const char *varname, const ISMRMRD_NDArray *arr) {
     int status;

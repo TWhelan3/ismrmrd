@@ -187,7 +187,16 @@ namespace ISMRMRD
       map_[std::string(name)] = std::vector<MetaValue>(1,value);
     }
 
+    bool exists(const char* name)
+    {
+         map_t::const_iterator it = map_.find(std::string(name));
+      if (it == map_.end())
+           return false;
+      else
+               return true;
+    }
    
+
     template <class T> void append(const char* name, T value)
     {
       map_t::iterator it = map_.find(std::string(name));      
@@ -231,7 +240,7 @@ namespace ISMRMRD
     {
       map_t::const_iterator it = map_.find(std::string(name));
       if (it == map_.end()) {
-	throw std::runtime_error("Attempting to access unkown parameter");
+	throw std::runtime_error("Attempting to access unknown parameter");
       }
       if (index >= it->second.size()) {
 	throw std::runtime_error("Attempting to access indexed value out of bounds");
