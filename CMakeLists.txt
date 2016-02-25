@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 2.8)
 project(ISMRMRD)
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 # set project specific cmake module path
 set (ISMRMRD_CMAKE_DIR ${PROJECT_SOURCE_DIR}/cmake CACHE PATH
