@@ -112,9 +112,11 @@ find_package(HDF5 1.8 COMPONENTS C)
 if (HDF5_FOUND)
     set (ISMRMRD_DATASET_SUPPORT true)
     set (ISMRMRD_DATASET_SOURCES libsrc/dataset.c libsrc/dataset.cpp)
-    set (ISMRMRD_DATASET_INCLUDE_DIR ${HDF5_C_INCLUDE_DIR})
-    set (ISMRMRD_DATASET_LIBRARIES ${HDF5_LIBRARIES})
-else ()
+    set (ISMRMRD_DATASET_INCLUDE_DIR "/usr/local/hdf5/include")
+    set (ISMRMRD_DATASET_LIBRARIES "/usr/local/hdf5/lib/libhdf5.so")
+    message (${HDF5_C_INCLUDE_DIR})
+    message (${ISMRMRD_DATASET_LIBRARIES})	
+else (HDF5_FOUND)
     set (ISMRMRD_DATASET_SUPPORT false)
     message (WARNING "HDF5 not found. Dataset and file support unavailable!")
 endif ()
@@ -158,6 +160,7 @@ set(ISMRMRD_TARGET_INCLUDE_DIRS
   ${CMAKE_CURRENT_LIST_DIR}/include
   ${CMAKE_BINARY_DIR}/include
   ${ISMRMRD_DATASET_INCLUDE_DIR}
+  
 )
 
 set(ISMRMRD_TARGET_SOURCES
