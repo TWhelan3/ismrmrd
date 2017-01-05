@@ -272,11 +272,11 @@ function append_node(docNode,subnode,subheader,name,tostr)
         (docNode.createTextNode(subheader.(name)));
         subnode.appendChild(n1);
     else
-
-        for val = subheader.(name)(:)
+        val = subheader.(name)(:);
+        for thisval = 1:length(val)
             n1 = docNode.createElement(name);
             n1.appendChild...
-                (docNode.createTextNode(tostr(val)));        
+                (docNode.createTextNode(tostr(val(thisval))));        
             subnode.appendChild(n1);
         end
     end
